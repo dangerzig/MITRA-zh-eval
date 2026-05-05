@@ -112,15 +112,32 @@ def extract_sentences(xml_files, target=TARGET_SENTENCES):
     full_text = re.sub(r"\[.*?\]", "", full_text)  # Remove bracketed refs
 
     # Split into sentences on Chinese punctuation
-    sentences = re.split(r"(?<=[。！？])", full_text)
-    sentences = [s.strip() for s in sentences if s.strip()]
+    raw_sentences = re.split(r"(?<=[。！？])", full_text)
+    raw_sentences = [s.strip() for s in raw_sentences if s.strip()]
+
+    # Merge short sentences with the next one to avoid trivially easy
+    # fragments. Nehrdich used Bertalign which naturally merges these.
+    # Target minimum ~20 chars per sentence (roughly one full clause).
+    MIN_CHARS = 20
+    merged = []
+    buf = ""
+    for s in raw_sentences:
+        buf += s
+        if len(buf) >= MIN_CHARS:
+            merged.append(buf)
+            buf = ""
+    if buf:
+        if merged:
+            merged[-1] += buf
+        else:
+            merged.append(buf)
 
     # Skip first ~5 sentences (title/preface material)
-    skip = min(5, len(sentences) // 10)
-    sentences = sentences[skip:]
+    skip = min(5, len(merged) // 10)
+    merged = merged[skip:]
 
     # Take target number
-    return sentences[:target]
+    return merged[:target]
 
 
 def main():

@@ -14,7 +14,7 @@ if [ -z "$ANTHROPIC_API_KEY" ]; then
     exit 1
 fi
 
-TARGET=2168
+TARGET=2050
 LOG=~/MITRA-zh-eval/eval_run.log
 
 echo "$(date): MITRA-zh-eval faithful replication" | tee $LOG
