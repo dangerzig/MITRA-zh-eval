@@ -33,7 +33,7 @@ USER_PROMPT = """Now translate the following text to English. Provide only the t
 {chinese}"""
 
 
-def translate_batch(client, sentences, model, output_path, batch_size=50):
+def translate_batch(client, sentences, model, output_path):
     """Translate sentences and write results incrementally."""
     # Load any existing results to support resumption
     done_ids = set()

@@ -41,7 +41,7 @@ English translation: "{translation}"
 Score: """
 
 
-def score_translation(client, source, translation, reference=None):
+def score_translation(client, source, translation, reference=None, model="gemini-flash-lite-latest"):
     """Score a single translation using GEMBA."""
     if reference:
         prompt = GEMBA_PROMPT.format(
@@ -52,32 +52,35 @@ def score_translation(client, source, translation, reference=None):
             source=source, translation=translation,
         )
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-flash-lite-latest",
-            contents=prompt,
-        )
-        text = response.text.strip()
-        # Strict parsing: expect just a number, optionally followed by /100
-        # First try exact match (just a number)
-        exact = re.match(r"^(\d{1,3})(?:/100)?\.?$", text)
-        if exact:
-            score = int(exact.group(1))
-            return min(max(score, 0), 100)
-        # Fallback: find "Score: N" or just a lone number
-        scored = re.search(r"(?:score[:\s]*)?(\d{1,3})(?:/100)?", text, re.IGNORECASE)
-        if scored:
-            score = int(scored.group(1))
-            if 0 <= score <= 100:
-                return score
-        print(f"    Could not parse score from: {text[:60]}")
-        return None
-    except Exception as e:
-        if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
-            time.sleep(5)
-            return None  # Will be retried on next run via resumption
-        print(f"    Gemini error: {e}")
-        return None
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model=model,
+                contents=prompt,
+            )
+            text = response.text.strip()
+            # Strict parsing: expect just a number, optionally /100
+            exact = re.match(r"^(\d{1,3})(?:/100)?\.?$", text)
+            if exact:
+                score = int(exact.group(1))
+                return min(max(score, 0), 100)
+            # Fallback: grab the LAST number in the response (most likely
+            # to be the actual score, not a reference to source length etc.)
+            all_nums = re.findall(r"\b(\d{1,3})\b", text)
+            valid = [int(n) for n in all_nums if 0 <= int(n) <= 100]
+            if valid:
+                return valid[-1]  # Last valid number
+            print(f"    Could not parse score from: {text[:60]}")
+            return None
+        except Exception as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                wait = 5 * (2 ** attempt)  # Exponential backoff: 5, 10, 20s
+                print(f"    Rate limited, waiting {wait}s (attempt {attempt+1}/3)")
+                time.sleep(wait)
+                continue
+            print(f"    Gemini error: {e}")
+            return None
+    return None  # All retries exhausted
 
 
 def main():
@@ -89,6 +92,8 @@ def main():
     parser.add_argument("--reference-free", action="store_true")
     parser.add_argument("--output", "-o", type=str, required=True)
     parser.add_argument("--gemini-key", type=str, default=None)
+    parser.add_argument("--judge-model", type=str, default="gemini-flash-lite-latest",
+                        help="Gemini model for GEMBA scoring (default: gemini-flash-lite-latest)")
     args = parser.parse_args()
 
     api_key = args.gemini_key or os.environ.get("GEMINI_API_KEY")
@@ -143,6 +148,7 @@ def main():
                 source=t["chinese"],
                 translation=t["english"],
                 reference=ref if not args.reference_free else None,
+                model=args.judge_model,
             )
 
             if score is not None:
