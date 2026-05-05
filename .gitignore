@@ -1,0 +1,8 @@
+
+.venv/
+*.pyc
+__pycache__/
+translations/old/
+/tmp/
+*.log
+
