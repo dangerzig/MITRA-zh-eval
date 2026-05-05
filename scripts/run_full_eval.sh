@@ -25,9 +25,9 @@ echo "  Scoring prompt: GEMBA-DA (Kocmi & Federmann 2023)" | tee -a $LOG
 # --- Wait for all translations ---
 echo "$(date): Waiting for translations..." | tee -a $LOG
 while true; do
-    S=$(wc -l < translations/sonnet.jsonl 2>/dev/null || echo 0)
-    O=$(wc -l < translations/opus.jsonl 2>/dev/null || echo 0)
-    H=$(wc -l < translations/haiku.jsonl 2>/dev/null || echo 0)
+    S=$(wc -l < translations/sonnet.jsonl 2>/dev/null | tr -d ' ' || echo 0)
+    O=$(wc -l < translations/opus.jsonl 2>/dev/null | tr -d ' ' || echo 0)
+    H=$(wc -l < translations/haiku.jsonl 2>/dev/null | tr -d ' ' || echo 0)
     echo "  Sonnet: $S  Opus: $O  Haiku: $H  (target: $TARGET each)"
 
     PROCS=$(ps aux | grep "translate.py" | grep -v grep | wc -l | tr -d ' ')

@@ -41,7 +41,7 @@ English translation: "{translation}"
 Score: """
 
 
-def score_translation(client, source, translation, reference=None, model="gemini-flash-lite-latest"):
+def score_translation(client, source, translation, reference=None, model="gemini-2.5-flash"):
     """Score a single translation using GEMBA."""
     if reference:
         prompt = GEMBA_PROMPT.format(
@@ -54,9 +54,14 @@ def score_translation(client, source, translation, reference=None, model="gemini
 
     for attempt in range(3):
         try:
+            config = types.GenerateContentConfig(
+                thinking_config=types.ThinkingConfig(thinking_budget=0),
+                max_output_tokens=10,
+            ) if "2.5" in model else None
             response = client.models.generate_content(
                 model=model,
                 contents=prompt,
+                **({"config": config} if config else {}),
             )
             text = response.text.strip()
             # Strict parsing: expect just a number, optionally /100
@@ -92,8 +97,8 @@ def main():
     parser.add_argument("--reference-free", action="store_true")
     parser.add_argument("--output", "-o", type=str, required=True)
     parser.add_argument("--gemini-key", type=str, default=None)
-    parser.add_argument("--judge-model", type=str, default="gemini-flash-lite-latest",
-                        help="Gemini model for GEMBA scoring (default: gemini-flash-lite-latest)")
+    parser.add_argument("--judge-model", type=str, default="gemini-2.5-flash",
+                        help="Gemini model for GEMBA scoring (default: gemini-2.5-flash)")
     args = parser.parse_args()
 
     api_key = args.gemini_key or os.environ.get("GEMINI_API_KEY")
